@@ -1,8 +1,9 @@
-
-% ADVANCED ROCKET FLIGHT SIMULATOR V3.0 (INTERACTIVE)
+% =========================================================================
+% ADVANCED ROCKET FLIGHT SIMULATOR V3.1
 % Includes: Live User Inputs, 2D Kinematics, Wind Drift, Sensor Fusion,
-% Dual-Deploy Avionics, Live Telemetry Plotting, and Post-Flight Dashboard
-
+% Dual-Deploy Avionics, Live Telemetry Plotting, Post-Flight Dashboard, 
+% and Automatic CSV Data Export.
+% =========================================================================
 clc; clear; close all;
 
 %% 1. MISSION CONTROL: LIVE USER INPUTS
@@ -76,9 +77,9 @@ main_deployed = false;
 apogee_detected = false;
 descent_samples = 0;
 
-% Data Logging Arrays (For Dashboard)
+% Data Logging Arrays (For Dashboard & CSV)
 log_t = []; log_y = []; log_est_y = []; log_vy = []; 
-log_ay = []; log_x = [];
+log_ay = []; log_x = []; log_phase = strings(0);
 
 %% 4. LIVE VISUALIZATION SETUP
 fig = figure('Name', 'Live Flight Telemetry', 'Position', [100, 100, 800, 500]);
@@ -128,7 +129,7 @@ while true
     % 2. Air Density (Standard Atmosphere Model approximation)
     rho = 1.225 * exp(-0.000118 * true_y);
     
-    % 3. Aerodynamic Drag Calculation (includes wind vector)
+    % 3. Aerodynamic Drag Calculation
     v_rel_x = true_vx - wind_speed;
     v_rel_y = true_vy;
     v_mag = sqrt(v_rel_x^2 + v_rel_y^2);
@@ -228,9 +229,10 @@ while true
     % C. DATA LOGGING & VISUALIZATION
     % ---------------------------------------------------------------------
     
-    % Store data for dashboard
+    % Store data for dashboard and CSV export
     log_t(end+1) = t; log_y(end+1) = true_y; log_est_y(end+1) = est_y;
     log_vy(end+1) = true_vy; log_ay(end+1) = true_ay; log_x(end+1) = true_x;
+    log_phase(end+1) = flight_phase;
     
     % Update live plots 
     if mod(t, 0.15) < dt 
@@ -241,14 +243,26 @@ while true
     
     if flight_phase == "TOUCHDOWN"
         fprintf('[%.2fs] TOUCHDOWN CONFIRMED. MISSION SUCCESS.\n', t);
-        fprintf('Total Drift Distance: %.1f meters\n', true_x);
+        fprintf('Total Drift Distance: %.1f meters\n\n', true_x);
         break;
     end
     
     t = t + dt;
 end
 
-%% 6. POST-FLIGHT TELEMETRY DASHBOARD
+%% 6. CSV FLIGHT LOG EXPORT
+fprintf('Exporting flight logs to CSV...\n');
+
+% Compile arrays into a MATLAB table (transposing rows to columns with ')
+telemetry_table = table(log_t', log_phase', log_x', log_y', log_est_y', log_vy', log_ay', ...
+    'VariableNames', {'Time_s', 'Flight_Phase', 'Downrange_X_m', 'True_Altitude_m', ...
+                      'Filtered_Altitude_m', 'True_Velocity_Y_ms', 'True_Accel_Y_ms2'});
+
+% Write table to CSV file
+writetable(telemetry_table, 'flight_telemetry_log.csv');
+fprintf('>>> Logs successfully saved to "flight_telemetry_log.csv" <<<\n\n');
+
+%% 7. POST-FLIGHT TELEMETRY DASHBOARD
 fprintf('Generating post-flight telemetry dashboard...\n');
 
 dash = figure('Name', 'Post-Flight Dashboard', 'Position', [150, 150, 1000, 600]);
